@@ -1,0 +1,28 @@
+app = "bus-shuttle-checker"
+primary_region = "yyz" # Toronto region
+
+[build]
+  image = "bomel/bus-shuttle-checker:latest"
+
+[env]
+  PORT = "8080"
+  CHECK_INTERVAL = "60"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "15s"
+  method = "GET"
+  timeout = "10s"
+  path = "/health"
+
+[metrics]
+  port = 8080
+  path = "/metrics" 

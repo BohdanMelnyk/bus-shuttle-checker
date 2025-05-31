@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bus-shuttle-checker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: ./main
+    envVars:
+      - key: MAILGUN_DOMAIN
+        sync: false
+      - key: MAILGUN_API_KEY
+        sync: false
+      - key: RECIPIENT_EMAIL
+        sync: false
+      - key: SENDER_EMAIL
+        sync: false
+    autoDeploy: true
+    healthCheckPath: /health
+    numInstances: 1
+    plan: free 

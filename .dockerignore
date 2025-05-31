@@ -1,0 +1,40 @@
+# Version control
+.git
+.gitignore
+
+# Environment variables
+.env
+*.env
+
+# IDE files
+.idea
+*.iml
+.vscode
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+*.test
+
+# Debug files
+*.out
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore 
