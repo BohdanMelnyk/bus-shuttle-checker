@@ -43,7 +43,8 @@ jobs:
           MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         run: |
-          go run main.go check-all
+          mkdir -p public/api
+          go run main.go check-all > public/api/status.json
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -51,7 +52,6 @@ jobs:
       - name: Update Results Page
         run: |
           timestamp=$(date -u +"%Y-%m-%d %H:%M UTC")
-          mkdir -p public
           cat > public/index.html << EOL
           <!DOCTYPE html>
           <html>
@@ -90,6 +90,23 @@ jobs:
                       margin-top: 20px;
                       font-size: 0.9em;
                   }
+                  #results {
+                      margin-top: 20px;
+                      border-collapse: collapse;
+                      width: 100%;
+                  }
+                  #results th, #results td {
+                      padding: 8px;
+                      text-align: left;
+                      border-bottom: 1px solid #ddd;
+                  }
+                  #results tr:nth-child(even) {
+                      background-color: #f9f9f9;
+                  }
+                  .api-link {
+                      text-align: center;
+                      margin-top: 20px;
+                  }
               </style>
           </head>
           <body>
@@ -98,9 +115,11 @@ jobs:
                       <h1>Shuttle Availability Status</h1>
                   </div>
                   <div class="status">
-                      <p>Last check: $timestamp</p>
-                      <p>Status: Check completed</p>
-                      <p>Note: If shuttles are available, you will receive an email notification.</p>
+                      <p>Last check: <span id="lastCheck">$timestamp</span></p>
+                      <div id="resultsTable"></div>
+                  </div>
+                  <div class="api-link">
+                      <p><a href="./api/status.json" target="_blank">View Raw JSON API Response</a></p>
                   </div>
                   <div class="timestamp">
                       <p>This page auto-updates every 30 minutes</p>
@@ -122,7 +141,53 @@ jobs:
                       countdownEl.textContent = \`\${minutes.toString().padStart(2, '0')}:\${seconds.toString().padStart(2, '0')}\`;
                   }
                   
+                  async function loadResults() {
+                      try {
+                          const response = await fetch('./api/status.json');
+                          const data = await response.json();
+                          
+                          const table = document.createElement('table');
+                          table.id = 'results';
+                          
+                          // Create header
+                          const thead = document.createElement('thead');
+                          thead.innerHTML = \`
+                              <tr>
+                                  <th>Location</th>
+                                  <th>Status</th>
+                                  <th>Last Checked</th>
+                              </tr>
+                          \`;
+                          table.appendChild(thead);
+                          
+                          // Create body
+                          const tbody = document.createElement('tbody');
+                          data.results.forEach(result => {
+                              const tr = document.createElement('tr');
+                              tr.innerHTML = \`
+                                  <td>\${result.name}</td>
+                                  <td>\${result.available ? '✅ Available' : '❌ Not Available'}</td>
+                                  <td>\${new Date(result.checkedAt).toLocaleString()}</td>
+                              \`;
+                              tbody.appendChild(tr);
+                          });
+                          table.appendChild(tbody);
+                          
+                          document.getElementById('resultsTable').innerHTML = '';
+                          document.getElementById('resultsTable').appendChild(table);
+                      } catch (error) {
+                          console.error('Error loading results:', error);
+                      }
+                  }
+                  
+                  // Initial load
+                  loadResults();
+                  
+                  // Update countdown
                   setInterval(updateCountdown, 1000);
+                  
+                  // Reload results every 30 minutes
+                  setInterval(loadResults, 1800000);
               </script>
           </body>
           </html>
