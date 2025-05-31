@@ -24,7 +24,8 @@ Add the following secrets in your repository's Settings > Secrets and variables 
 
 - `MAILGUN_API_KEY`: Your Mailgun API key
 - `MAILGUN_DOMAIN`: Your Mailgun domain
-- `NOTIFICATION_EMAIL`: Email address to receive notifications
+- `RECIPIENT_EMAIL`: Email address to receive notifications
+- `SENDER_EMAIL`: Email address to send notifications from
 
 ### 3. Enable GitHub Actions
 
@@ -58,7 +59,7 @@ cd bus-shuttle-checker
 ```bash
 export MAILGUN_API_KEY=your_api_key
 export MAILGUN_DOMAIN=your_domain
-export NOTIFICATION_EMAIL=your_email
+export RECIPIENT_EMAIL=your_email
 ```
 
 3. Run the checker:
