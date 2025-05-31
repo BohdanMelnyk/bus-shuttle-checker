@@ -42,9 +42,19 @@ jobs:
           MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
           MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          PORT: "8080"  # Add default port
         run: |
           mkdir -p public/api
-          go run main.go check-all > public/api/status.json
+          echo "Running check-all with configured environment..."
+          go run main.go check-all > public/api/status.json || {
+            echo "Error running check-all. Environment variables status:"
+            echo "MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:+set}"
+            echo "MAILGUN_API_KEY: ${MAILGUN_API_KEY:+set}"
+            echo "NOTIFICATION_EMAIL: ${NOTIFICATION_EMAIL:+set}"
+            echo "SENDER_EMAIL: ${SENDER_EMAIL:+set}"
+            exit 1
+          }
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
