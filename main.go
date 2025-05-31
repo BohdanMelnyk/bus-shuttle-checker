@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -32,8 +33,23 @@ func main() {
 	senderEmail := os.Getenv("SENDER_EMAIL")
 
 	// Validate required environment variables
-	if mailgunDomain == "" || mailgunAPIKey == "" || recipientEmail == "" || senderEmail == "" {
-		log.Fatal("Missing required environment variables. Please set MAILGUN_DOMAIN, MAILGUN_API_KEY, RECIPIENT_EMAIL, and SENDER_EMAIL")
+	var missingVars []string
+
+	if mailgunDomain == "" {
+		missingVars = append(missingVars, "MAILGUN_DOMAIN")
+	}
+	if mailgunAPIKey == "" {
+		missingVars = append(missingVars, "MAILGUN_API_KEY")
+	}
+	if recipientEmail == "" {
+		missingVars = append(missingVars, "RECIPIENT_EMAIL")
+	}
+	if senderEmail == "" {
+		missingVars = append(missingVars, "SENDER_EMAIL")
+	}
+
+	if len(missingVars) > 0 {
+		log.Fatalf("Missing required environment variables: %s", strings.Join(missingVars, ", "))
 	}
 
 	// Create an availability checker
