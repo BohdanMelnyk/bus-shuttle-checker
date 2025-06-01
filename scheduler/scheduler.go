@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/BohdanMelnyk/bus-shulter-checker/notification"
 	"github.com/BohdanMelnyk/bus-shulter-checker/shuttle"
+	"strings"
 	"time"
 )
 
@@ -27,17 +28,19 @@ func NewAvailabilityScheduler(checker shuttle.AvailabilityChecker, notifier noti
 // for any available slots
 func (s *AvailabilityScheduler) CheckAvailabilityAndNotify() {
 	fmt.Println("Starting availability check...")
-	for name, url := range shuttle.GetAllURLs() {
-		if s.checker.CheckAvailability(url) {
-			fmt.Printf("Slot available for %s: %s\n", name, url)
-			id, err := s.notifier.SendNotification(url, name)
+	for name, location := range shuttle.ShuttleURLs {
+		hasAvailability, availableDates := s.checker.CheckAvailabilityForDates(location.URL, location.Dates)
+		if hasAvailability {
+			message := fmt.Sprintf("Slot available for %s on dates: %s", name, strings.Join(availableDates, ", "))
+			fmt.Printf("%s\n", message)
+			id, err := s.notifier.SendNotification(location.URL, message)
 			if err != nil {
-				fmt.Printf("Error sending notification for %s %s: %v\n", name, url, err)
+				fmt.Printf("Error sending notification for %s %s: %v\n", name, location.URL, err)
 			} else {
-				fmt.Printf("Notification sent successfully for %s %s, ID: %s\n", name, url, id)
+				fmt.Printf("Notification sent successfully for %s %s, ID: %s\n", name, location.URL, id)
 			}
 		} else {
-			fmt.Printf("No slots available for %s: %s\n", name, url)
+			fmt.Printf("No slots available for %s: %s (checked dates: %s)\n", name, location.URL, strings.Join(location.Dates, ", "))
 		}
 	}
 	fmt.Println("Availability check completed")

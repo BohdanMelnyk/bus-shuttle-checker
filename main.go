@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/BohdanMelnyk/bus-shulter-checker/notification"
 	"github.com/BohdanMelnyk/bus-shulter-checker/scheduler"
 	"github.com/BohdanMelnyk/bus-shulter-checker/shuttle"
+	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
@@ -13,10 +15,12 @@ import (
 )
 
 type CheckResult struct {
-	Name      string    `json:"name"`
-	URL       string    `json:"url"`
-	Available bool      `json:"available"`
-	CheckedAt time.Time `json:"checkedAt"`
+	Name           string    `json:"name"`
+	URL            string    `json:"url"`
+	Available      bool      `json:"available"`
+	CheckedDates   []string `json:"checkedDates"`
+	AvailableDates []string `json:"availableDates"`
+	CheckedAt      time.Time `json:"checkedAt"`
 }
 
 type AllChecksResponse struct {
@@ -25,6 +29,11 @@ type AllChecksResponse struct {
 
 func main() {
 	log.Println("Starting bus-shuttle-checker...")
+
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file:", err)
+	}
 
 	// Get configuration from environment variables
 	mailgunDomain := os.Getenv("MAILGUN_DOMAIN")
@@ -106,55 +115,51 @@ func checkAllHandler(w http.ResponseWriter, r *http.Request, notifier notificati
 
 	log.Println("Starting availability check for all locations...")
 
-	// Get all URLs from the shuttle package
-	allURLs := shuttle.GetAllURLs()
-	log.Printf("Checking %d locations from urls.go...", len(allURLs))
+	// Create a combined map of all shuttle locations to check
+	combinedLocations := make(map[string]shuttle.ShuttleInfo)
 
-	// Check URLs from urls.go
-	for name, url := range allURLs {
-		log.Printf("Checking %s...", name)
-		available := checker.CheckAvailability(url)
-		result := CheckResult{
-			Name:      name,
-			URL:       url,
-			Available: available,
-			CheckedAt: time.Now(),
-		}
-		results = append(results, result)
-		log.Printf("Check result for %s: %v", name, available)
-
-		if available {
-			log.Printf("Slots available for %s, sending notification...", name)
-			if id, err := notifier.SendNotification(url, name); err != nil {
-				log.Printf("Error sending notification for %s: %v", name, err)
-			} else {
-				log.Printf("Notification sent successfully for %s, ID: %s", name, id)
-			}
-		}
+	// Add locations from ShuttleURLs
+	for name, location := range shuttle.ShuttleURLs {
+		combinedLocations[name] = location
 	}
 
-	// Additional URLs to check (not in urls.go)
-	additionalURLs := map[string]string{
-		"Lake Louise Late Sep": "https://reservation.pc.gc.ca/create-booking/results?mapId=-2147483090&searchTabGroupId=3&bookingCategoryId=9&startDate=2025-09-30&endDate=2025-10-01&nights=1&isReserving=true&peopleCapacityCategoryCounts=%5B%5B-32767,null,2,null%5D%5D&searchTime=2025-05-30T17:04:11.889&flexibleSearch=%5Bfalse,false,null,1%5D&resourceLocationId=-2147483642&filterData=%7B%7D",
+	// Add additional locations
+	additionalLocations := map[string]shuttle.ShuttleInfo{
+		"Lake Louise Late Sep": {
+			URL:   "https://reservation.pc.gc.ca/create-booking/results?mapId=-2147483090&searchTabGroupId=3&bookingCategoryId=9&startDate=2025-09-30&endDate=2025-10-01&nights=1&isReserving=true&peopleCapacityCategoryCounts=%5B%5B-32767,null,2,null%5D%5D&searchTime=2025-05-30T17:04:11.889&flexibleSearch=%5Bfalse,false,null,1%5D&resourceLocationId=-2147483642&filterData=%7B%7D",
+			Dates: []string{"2025-09-30", "2025-10-01"},
+		},
+		"Lake Louise Early Oct": {
+			URL:   "https://reservation.pc.gc.ca/create-booking/results?mapId=-2147483090&searchTabGroupId=3&bookingCategoryId=9&startDate=2025-10-07&endDate=2025-10-08&nights=1&isReserving=true&peopleCapacityCategoryCounts=%5B%5B-32767,null,1,null%5D%5D&searchTime=2025-06-01T14:02:43.225&groupHoldUid=&flexibleSearch=%5Bfalse,false,null,1%5D&resourceLocationId=-2147483642&filterData=%7B%7D",
+			Dates: []string{"2025-10-12"},
+		},
 	}
 
-	// Check additional URLs
-	log.Printf("Checking %d additional locations...", len(additionalURLs))
-	for name, url := range additionalURLs {
+	// Add additional locations to combined map
+	for name, location := range additionalLocations {
+		combinedLocations[name] = location
+	}
+
+	// Check all locations
+	log.Printf("Checking %d total locations...", len(combinedLocations))
+	for name, location := range combinedLocations {
 		log.Printf("Checking %s...", name)
-		available := checker.CheckAvailability(url)
+		available, availableDates := checker.CheckAvailabilityForDates(location.URL, location.Dates)
 		result := CheckResult{
-			Name:      name,
-			URL:       url,
-			Available: available,
-			CheckedAt: time.Now(),
+			Name:           name,
+			URL:            location.URL,
+			Available:      available,
+			CheckedDates:   location.Dates,
+			AvailableDates: availableDates,
+			CheckedAt:      time.Now(),
 		}
 		results = append(results, result)
-		log.Printf("Check result for %s: %v", name, available)
+		log.Printf("Check result for %s: %v (Available dates: %v)", name, available, availableDates)
 
 		if available {
-			log.Printf("Slots available for %s, sending notification...", name)
-			if id, err := notifier.SendNotification(url, name); err != nil {
+			message := fmt.Sprintf("Slots available for %s on dates: %s", name, strings.Join(availableDates, ", "))
+			log.Printf("%s, sending notification...", message)
+			if id, err := notifier.SendNotification(location.URL, message); err != nil {
 				log.Printf("Error sending notification for %s: %v", name, err)
 			} else {
 				log.Printf("Notification sent successfully for %s, ID: %s", name, id)
