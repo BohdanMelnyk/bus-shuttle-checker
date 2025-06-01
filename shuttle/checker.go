@@ -2,6 +2,7 @@ package shuttle
 
 import (
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 	"os"
 	"sort"
 	"strings"
@@ -17,14 +18,17 @@ func NewWebChecker() *WebChecker {
 
 // initBrowser initializes a new browser instance with appropriate settings
 func (w *WebChecker) initBrowser() *rod.Browser {
-	browser := rod.New()
+	// Create a new launcher
+	l := launcher.New()
 	
 	// Check if running in CI environment
 	if os.Getenv("CI") == "true" {
-		browser = browser.NoSandbox()
+		l.Set("no-sandbox", "true")
 	}
 	
-	return browser.MustConnect()
+	// Create and connect browser
+	browser := rod.New().ControlURL(l.MustLaunch()).MustConnect()
+	return browser.NoDefaultDevice()
 }
 
 // CheckAvailability checks if a shuttle slot is available for the given URL
