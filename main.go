@@ -32,7 +32,7 @@ func main() {
 
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
-		log.Info("Error loading .env file:", err)
+		log.Println("Error loading .env file:", err)
 	}
 
 	// Get configuration from environment variables
