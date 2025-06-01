@@ -24,6 +24,10 @@ func (w *WebChecker) initBrowser() *rod.Browser {
 	// Check if running in CI environment
 	if os.Getenv("CI") == "true" {
 		l.Set("no-sandbox", "true")
+		l.Set("disable-setuid-sandbox", "true")
+		l.Set("disable-dev-shm-usage", "true")
+		l.Set("disable-gpu", "true")
+		l.Headless(true)
 	}
 	
 	// Create and connect browser
@@ -80,6 +84,9 @@ func (w *WebChecker) CheckAvailabilityForDates(url string, dates []string) (bool
 
 	// Wait for all asynchronous processes to complete
 	page.MustWaitDOMStable()
+
+	// Wait for the specific element indicating the page is fully loaded
+	page.MustElement(".chart-cell").MustWaitVisible()
 
 	// Extract all elements with the class "chart-cell"
 	cells := page.MustElements(".chart-cell")
