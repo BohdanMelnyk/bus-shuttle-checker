@@ -2,6 +2,7 @@ package shuttle
 
 import (
 	"github.com/go-rod/rod"
+	"os"
 	"sort"
 	"strings"
 )
@@ -14,11 +15,23 @@ func NewWebChecker() *WebChecker {
 	return &WebChecker{}
 }
 
+// initBrowser initializes a new browser instance with appropriate settings
+func (w *WebChecker) initBrowser() *rod.Browser {
+	browser := rod.New()
+	
+	// Check if running in CI environment
+	if os.Getenv("CI") == "true" {
+		browser = browser.NoSandbox()
+	}
+	
+	return browser.MustConnect()
+}
+
 // CheckAvailability checks if a shuttle slot is available for the given URL
 // It returns true if a slot is available, false otherwise
 func (w *WebChecker) CheckAvailability(url string) bool {
 	// Start a Rod browser
-	browser := rod.New().MustConnect()
+	browser := w.initBrowser()
 	defer browser.MustClose()
 
 	// Navigate to the URL
@@ -49,7 +62,7 @@ func (w *WebChecker) CheckAvailability(url string) bool {
 // Additionally, it returns a list of unique dates for which slots are available
 func (w *WebChecker) CheckAvailabilityForDates(url string, dates []string) (bool, []string) {
 	// Start a Rod browser
-	browser := rod.New().MustConnect()
+	browser := w.initBrowser()
 	defer browser.MustClose()
 
 	// Navigate to the URL
