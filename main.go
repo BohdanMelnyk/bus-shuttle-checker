@@ -90,18 +90,38 @@ func main() {
 		checkAllHandler(w, r, emailNotifier)
 	})
 
-	// Start periodic checks in a goroutine
-	go availabilityScheduler.StartPeriodicChecks()
+	// Create a channel to signal shutdown
+	shutdownChan := make(chan struct{})
 
-	// Start HTTP server for health checks
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Start HTTP server in a goroutine
+	go func() {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+		log.Printf("Starting HTTP server on port %s...\n", port)
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.Printf("HTTP server stopped: %v\n", err)
+		}
+	}()
+
+	// Run one check immediately
+	log.Println("Running initial availability check...")
+	availabilityScheduler.CheckAvailabilityAndNotify()
+
+	// Set a timer for 5 minutes
+	shutdownTimer := time.NewTimer(5 * time.Minute)
+
+	// Wait for either shutdown signal or timer expiration
+	select {
+	case <-shutdownTimer.C:
+		log.Println("5 minutes elapsed, shutting down...")
+	case <-shutdownChan:
+		log.Println("Received shutdown signal...")
 	}
-	log.Printf("Starting HTTP server on port %s...\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
+
+	log.Println("Shutdown complete")
+	os.Exit(0)
 }
 
 func checkAllHandler(w http.ResponseWriter, r *http.Request, notifier notification.Notifier) {
