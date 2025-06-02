@@ -11,14 +11,15 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
+# Allow only one concurrent deployment, but don't cancel in-progress runs
 concurrency:
-  group: "pages"
+  group: "shuttle-checker"
   cancel-in-progress: false
 
 jobs:
   check-availability:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Set maximum runtime to 10 minutes
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -43,26 +44,32 @@ jobs:
           MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
-          PORT: "8080"  # Add default port
+          CI: "true"  # Set CI environment variable
         run: |
           mkdir -p public/api
           echo "Running check-all with configured environment..."
-          go run main.go check-all > public/api/status.json || {
+          # Run the check and capture output
+          output=$(go run main.go check-all)
+          status=$?
+          
+          # Save output to status.json
+          echo "$output" > public/api/status.json
+          
+          # Check if the command was successful
+          if [ $status -ne 0 ]; then
             echo "Error running check-all. Environment variables status:"
             echo "MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:+set}"
             echo "MAILGUN_API_KEY: ${MAILGUN_API_KEY:+set}"
             echo "RECIPIENT_EMAIL: ${RECIPIENT_EMAIL:+set}"
             echo "SENDER_EMAIL: ${SENDER_EMAIL:+set}"
             exit 1
-          }
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+          fi
 
       - name: Update Results Page
+        if: success()
         run: |
           timestamp=$(date -u +"%Y-%m-%d %H:%M UTC")
-          cat > public/index.html << EOL
+          cat > public/index.html << 'EOL'
           <!DOCTYPE html>
           <html>
           <head>
@@ -113,6 +120,13 @@ jobs:
                   #results tr:nth-child(even) {
                       background-color: #f9f9f9;
                   }
+                  .available {
+                      color: #28a745;
+                      font-weight: bold;
+                  }
+                  .not-available {
+                      color: #dc3545;
+                  }
                   .api-link {
                       text-align: center;
                       margin-top: 20px;
@@ -125,7 +139,7 @@ jobs:
                       <h1>Shuttle Availability Status</h1>
                   </div>
                   <div class="status">
-                      <p>Last check: <span id="lastCheck">$timestamp</span></p>
+                      <p>Last check: <span id="lastCheck">TIMESTAMP</span></p>
                       <div id="resultsTable"></div>
                   </div>
                   <div class="api-link">
@@ -148,7 +162,7 @@ jobs:
                           seconds = 59;
                       }
                       
-                      countdownEl.textContent = \`\${minutes.toString().padStart(2, '0')}:\${seconds.toString().padStart(2, '0')}\`;
+                      countdownEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                   }
                   
                   async function loadResults() {
@@ -161,30 +175,39 @@ jobs:
                           
                           // Create header
                           const thead = document.createElement('thead');
-                          thead.innerHTML = \`
+                          thead.innerHTML = `
                               <tr>
                                   <th>Location</th>
                                   <th>Status</th>
+                                  <th>Available Dates</th>
                                   <th>Last Checked</th>
                               </tr>
-                          \`;
+                          `;
                           table.appendChild(thead);
                           
                           // Create body
                           const tbody = document.createElement('tbody');
                           data.results.forEach(result => {
                               const tr = document.createElement('tr');
-                              tr.innerHTML = \`
-                                  <td>\${result.name}</td>
-                                  <td>\${result.available ? '✅ Available' : '❌ Not Available'}</td>
-                                  <td>\${new Date(result.checkedAt).toLocaleString()}</td>
-                              \`;
+                              const statusClass = result.available ? 'available' : 'not-available';
+                              const statusText = result.available ? '✅ Available' : '❌ Not Available';
+                              const availableDates = result.availableDates ? result.availableDates.join(', ') : 'None';
+                              
+                              tr.innerHTML = `
+                                  <td>${result.name}</td>
+                                  <td class="${statusClass}">${statusText}</td>
+                                  <td>${availableDates}</td>
+                                  <td>${new Date(result.checkedAt).toLocaleString()}</td>
+                              `;
                               tbody.appendChild(tr);
                           });
                           table.appendChild(tbody);
                           
                           document.getElementById('resultsTable').innerHTML = '';
                           document.getElementById('resultsTable').appendChild(table);
+                          
+                          // Update timestamp
+                          document.getElementById('lastCheck').textContent = new Date().toLocaleString();
                       } catch (error) {
                           console.error('Error loading results:', error);
                       }
@@ -202,12 +225,21 @@ jobs:
           </body>
           </html>
           EOL
+          
+          # Replace TIMESTAMP placeholder with actual timestamp
+          sed -i "s/TIMESTAMP/$timestamp/g" public/index.html
+
+      - name: Setup Pages
+        if: success()
+        uses: actions/configure-pages@v4
 
       - name: Upload artifact
+        if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
       - name: Deploy to GitHub Pages
+        if: success()
         id: deployment
         uses: actions/deploy-pages@v4 

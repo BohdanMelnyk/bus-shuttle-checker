@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -17,10 +17,18 @@ jobs:
       with:
         go-version: '1.22'
 
+    - name: Install Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser
+        echo "CHROME_BIN=/usr/bin/chromium-browser" >> $GITHUB_ENV
+
     - name: Install dependencies
       run: go mod download
 
     - name: Run tests
+      env:
+        CI: "true"  # Set CI environment for tests
       run: go test -v ./...
 
   deploy:
