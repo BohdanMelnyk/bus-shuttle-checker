@@ -1,6 +1,18 @@
 # Bus Shuttle Checker
 
-Automated checker for bus shuttle availability. The application runs on a schedule using GitHub Actions and displays its status on GitHub Pages.
+An automated tool that monitors Parks Canada shuttle bus availability for popular destinations like Lake Louise, Moraine Lake, and Lake O'Hara. The application helps you secure shuttle tickets by automatically checking availability and sending notifications when slots open up.
+
+## What it does
+
+- **Continuous Monitoring**: Automatically checks shuttle availability for multiple locations and specific dates
+- **Date-Specific Tracking**: Monitors availability for particular dates you're interested in
+- **Smart Notifications**: Sends email alerts when slots become available, including the specific dates and locations
+- **Multiple Destinations**: Tracks availability for:
+  - Lake Louise (Alpine Start, Morning, and Midday slots)
+  - Moraine Lake (Alpine Start, Morning, and Midday slots)
+  - Lake O'Hara
+- **Real-time Updates**: Runs checks every 30 minutes to ensure you don't miss any openings
+- **Easy Configuration**: Add or modify the dates and locations you want to monitor
 
 ## Features
 
