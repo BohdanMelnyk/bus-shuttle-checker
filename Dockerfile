@@ -18,26 +18,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 # Create final image
 FROM alpine:latest
 
-# Install Chrome dependencies and tools
+# Install basic tools and certificates
 RUN apk update && apk add --no-cache \
-    chromium \
-    chromium-chromedriver \
-    curl \
     ca-certificates \
     tzdata \
-    dbus \
-    ttf-freefont \
-    && mkdir -p /var/run/dbus \
-    && dbus-daemon --system \
-    && mkdir -p /home/appuser/.cache/rod/browser \
     && addgroup -S appgroup \
-    && adduser -S appuser -G appgroup \
-    && chown -R appuser:appgroup /home/appuser
-
-# Set Chrome environment variables
-ENV CHROME_BIN=/usr/bin/chromium-browser \
-    CHROME_PATH=/usr/lib/chromium/ \
-    CHROMIUM_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --disable-software-rasterizer --disable-dbus --no-zygote --no-first-run --disable-extensions"
+    && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
@@ -51,8 +37,7 @@ RUN chown -R appuser:appgroup /app
 USER appuser
 
 # Set environment variables with defaults
-ENV PORT=8080 \
-    CHECK_INTERVAL=60
+ENV PORT=8080
 
 # Expose port
 EXPOSE 8080
