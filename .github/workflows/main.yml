@@ -17,18 +17,10 @@ jobs:
       with:
         go-version: '1.22'
 
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y chromium-browser
-        echo "CHROME_BIN=/usr/bin/chromium-browser" >> $GITHUB_ENV
-
     - name: Install dependencies
       run: go mod download
 
     - name: Run tests
-      env:
-        CI: "true"  # Set CI environment for tests
       run: go test -v ./...
 
   deploy:
@@ -43,12 +35,6 @@ jobs:
       with:
         go-version: '1.22'
 
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y chromium-browser
-        echo "CHROME_BIN=/usr/bin/chromium-browser" >> $GITHUB_ENV
-
     - name: Build
       run: go build -o bus-shuttle-checker
 
@@ -58,4 +44,4 @@ jobs:
         MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
         RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
-      run: ./bus-shuttle-checker check-all 
+      run: ./bus-shuttle-checker 
