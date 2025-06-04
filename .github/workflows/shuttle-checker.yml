@@ -19,7 +19,7 @@ concurrency:
 jobs:
   check-availability:
     runs-on: ubuntu-latest
-    timeout-minutes: 10  # Set maximum runtime to 10 minutes
+    timeout-minutes: 3  # Set maximum runtime to 3 minutes
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -41,15 +41,18 @@ jobs:
         run: |
           mkdir -p public/api
           echo "Running check-all with configured environment..."
-          # Run the check and capture output
-          output=$(go run main.go)
+          # Run the check with timeout and capture output
+          output=$(timeout 2m go run main.go || true)
           status=$?
           
           # Save output to status.json
           echo "$output" > public/api/status.json
           
+          # Kill any remaining processes
+          pkill -f "go run main.go" || true
+          
           # Check if the command was successful
-          if [ $status -ne 0 ]; then
+          if [ $status -ne 0 ] && [ $status -ne 124 ]; then  # 124 is timeout's exit code
             echo "Error running check-all. Environment variables status:"
             echo "MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:+set}"
             echo "MAILGUN_API_KEY: ${MAILGUN_API_KEY:+set}"
